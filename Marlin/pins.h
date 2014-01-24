@@ -360,19 +360,19 @@
     #define X_STEP_PIN         54
     #define X_DIR_PIN          55
     #define X_ENABLE_PIN       38
-    #define X_MIN_PIN           3
+    #define X_MIN_PIN          -1 // unused for deltabot, was 3
     #define X_MAX_PIN           2
 
     #define Y_STEP_PIN         60
     #define Y_DIR_PIN          61
     #define Y_ENABLE_PIN       56
-    #define Y_MIN_PIN          14
+    #define Y_MIN_PIN          -1 // unused for deltabot, was 14
     #define Y_MAX_PIN          15
 
     #define Z_STEP_PIN         46
     #define Z_DIR_PIN          48
     #define Z_ENABLE_PIN       62
-    #define Z_MIN_PIN          18
+    #define Z_MIN_PIN          14 // autolevel for deltabot
     #define Z_MAX_PIN          19
 
     #define Z2_STEP_PIN        36
@@ -980,8 +980,8 @@
        #define LCD_PINS_D7        27
      #endif
      //The encoder and click button
-     #define BTN_EN1 11  
-     #define BTN_EN2 10 
+     #define BTN_EN1 22
+     #define BTN_EN2 7
      #ifdef LCD_I2C_PANELOLU2
        #ifdef MELZI
          #define BTN_ENC 29 //the click switch
@@ -990,11 +990,9 @@
          #define BTN_ENC 30 //the click switch
        #endif
      #else
-       #define BTN_ENC 16  //the click switch
+       #define BTN_ENC 31  //the click switch
      #endif //Panelolu2
-     //not connected to a pin
-     #define SDCARDDETECT -1    
-    
+     #define SDCARDDETECT 49
    #endif //Newpanel
  #endif //Ultipanel
 
@@ -1348,7 +1346,7 @@
 #define HEATER_1_PIN       -1
 #define HEATER_2_PIN       -1
 #define HEATER_BED_PIN     20  // Bed
-#define FAN_PIN            22  // Fan
+#define FAN_PIN            16  // Fan
 // You may need to change FAN_PIN to 16 because Marlin isn't using fastio.h
 // for the fan and Teensyduino uses a different pin mapping.
 
@@ -1361,7 +1359,8 @@
 #else  // Printrboard
   #define X_STOP_PIN         35
   #define Y_STOP_PIN          8
-  #define Z_STOP_PIN         36
+  #define Z_MAX_PIN          36
+  #define Z_MIN_PIN          37  // Use E-STOP for autolevel Z probe
   #define TEMP_0_PIN          1  // Extruder / Analog pin numbering
   #define TEMP_BED_PIN        0  // Bed / Analog pin numbering
 #endif

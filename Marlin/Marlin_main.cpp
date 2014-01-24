@@ -63,6 +63,8 @@
 // G10 - retract filament according to settings of M207
 // G11 - retract recover filament according to settings of M208
 // G28 - Home all Axis
+// G29 - Calibrate print surface with automatic Z probe
+// G30 - Delta Autocalibration using Z probe
 // G90 - Use Absolute Coordinates
 // G91 - Use Relative Coordinates
 // G92 - Set current position to cordinates given
@@ -140,6 +142,7 @@
 // M540 - Use S[0|1] to enable or disable the stop SD card print on endstop hit (requires ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED)
 // M600 - Pause for filament change X[pos] Y[pos] Z[relative lift] E[initial retract] L[later retract distance for removal]
 // M605 - Set dual x-carriage movement mode: S<mode> [ X<duplication x-offset> R<duplication temp offset> ]
+// M666 - set endstop adjustment and delta geometry adjustment values
 // M907 - Set digital trimpot motor current using axis codes.
 // M908 - Control digital trimpot directly.
 // M350 - Set microstepping mode.
@@ -161,12 +164,41 @@
 CardReader card;
 #endif
 float homing_feedrate[] = HOMING_FEEDRATE;
+float z_probe_offset[] = Z_PROBE_OFFSET;
+float z_probe_deploy_start_location[] = Z_PROBE_DEPLOY_START_LOCATION;
+float z_probe_deploy_end_location[] = Z_PROBE_DEPLOY_END_LOCATION;
+float z_probe_retract_start_location[] = Z_PROBE_RETRACT_START_LOCATION;
+float z_probe_retract_end_location[] = Z_PROBE_RETRACT_END_LOCATION;
 bool axis_relative_modes[] = AXIS_RELATIVE_MODES;
 int feedmultiply=100; //100->1 200->2
 int saved_feedmultiply;
 int extrudemultiply=100; //100->1 200->2
 float current_position[NUM_AXIS] = { 0.0, 0.0, 0.0, 0.0 };
 float add_homeing[3]={0,0,0};
+#ifdef DELTA
+  float endstop_adj[3]={0,0,0};
+  float tower_adj[3]={0,0,0};
+  float delta_radius; // = DEFAULT_delta_radius;
+  float delta_diagonal_rod; // = DEFAULT_DELTA_DIAGONAL_ROD;
+  float DELTA_DIAGONAL_ROD_2;
+  float ac_prec = AUTOCALIBRATION_PRECISION / 2;
+  float bed_radius = BED_DIAMETER / 2;
+  float delta_tower1_x, delta_tower1_y;
+  float delta_tower2_x, delta_tower2_y;
+  float delta_tower3_x, delta_tower3_y;
+  float base_max_pos[3] = {X_MAX_POS, Y_MAX_POS, Z_MAX_POS};
+  float max_length[3] = {X_MAX_LENGTH, Y_MAX_LENGTH, Z_MAX_LENGTH};
+  float saved_position[3]={0.0,0.0,0.0};
+  float saved_positions[7][3] = {
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    {0, 0, 0},
+    };
+#endif
 float min_pos[3] = { X_MIN_POS, Y_MIN_POS, Z_MIN_POS };
 float max_pos[3] = { X_MAX_POS, Y_MAX_POS, Z_MAX_POS };
 
@@ -207,18 +239,33 @@ int EtoPPressure=0;
 
 #ifdef DELTA
 float delta[3] = {0.0, 0.0, 0.0};
+float delta_tmp[3] = {0.0, 0.0, 0.0};
 #endif
 
 //===========================================================================
 //=============================private variables=============================
 //===========================================================================
 const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
+const float SIN_60 = 0.8660254037844386;
+const float COS_60 = 0.5;
 static float destination[NUM_AXIS] = {  0.0, 0.0, 0.0, 0.0};
 static float offset[3] = {0.0, 0.0, 0.0};
+static float bed_level[7][7] = {
+  {0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, 0},
+};
 static bool home_all_axis = true;
-static float feedrate = 1500.0, next_feedrate, saved_feedrate;
+static float feedrate = 1500.0, next_feedrate, saved_feedrate, z_offset;
+static float highest_endstop, adj_x, adj_y, adj_z;
+static float bed_level_x, bed_level_y, bed_level_z, bed_level_c;
+static float bed_level_ox, bed_level_oy, bed_level_oz;
 static long gcode_N, gcode_LastN, Stopped_gcode_LastN = 0;
-
+static int loopcount;
 static bool relative_mode = false;  //Determines Absolute or Relative Coordinates
 
 static char cmdbuffer[BUFSIZE][MAX_CMD_SIZE];
@@ -246,7 +293,6 @@ unsigned long starttime=0;
 unsigned long stoptime=0;
 
 static uint8_t tmp_extruder;
-
 
 bool Stopped=false;
 
@@ -683,9 +729,9 @@ static inline type array(int axis)          \
     { return pgm_read_any(&array##_P[axis]); }
 
 XYZ_CONSTS_FROM_CONFIG(float, base_min_pos,    MIN_POS);
-XYZ_CONSTS_FROM_CONFIG(float, base_max_pos,    MAX_POS);
+//XYZ_CONSTS_FROM_CONFIG(float, base_max_pos,    MAX_POS);
 XYZ_CONSTS_FROM_CONFIG(float, base_home_pos,   HOME_POS);
-XYZ_CONSTS_FROM_CONFIG(float, max_length,      MAX_LENGTH);
+//XYZ_CONSTS_FROM_CONFIG(float, max_length,      MAX_LENGTH);
 XYZ_CONSTS_FROM_CONFIG(float, home_retract_mm, HOME_RETRACT_MM);
 XYZ_CONSTS_FROM_CONFIG(signed char, home_dir,  HOME_DIR);
 
@@ -741,7 +787,7 @@ static void axis_is_at_home(int axis) {
     else if (dual_x_carriage_mode == DXC_DUPLICATION_MODE && active_extruder == 0) {
       current_position[X_AXIS] = base_home_pos(X_AXIS) + add_homeing[X_AXIS];
       min_pos[X_AXIS] =          base_min_pos(X_AXIS) + add_homeing[X_AXIS]; 
-      max_pos[X_AXIS] =          min(base_max_pos(X_AXIS) + add_homeing[X_AXIS], 
+      max_pos[X_AXIS] =          min(base_max_pos[X_AXIS] + add_homeing[X_AXIS],
                                   max(extruder_offset[X_AXIS][1], X2_MAX_POS) - duplicate_extruder_x_offset);
       return;
     }
@@ -749,7 +795,7 @@ static void axis_is_at_home(int axis) {
 #endif
   current_position[axis] = base_home_pos(axis) + add_homeing[axis];
   min_pos[axis] =          base_min_pos(axis) + add_homeing[axis];
-  max_pos[axis] =          base_max_pos(axis) + add_homeing[axis];
+  max_pos[axis] =          base_max_pos[axis] + add_homeing[axis];
 }
 
 static void homeaxis(int axis) {
@@ -775,16 +821,18 @@ static void homeaxis(int axis) {
 
     current_position[axis] = 0;
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-    destination[axis] = 1.5 * max_length(axis) * axis_home_dir;
+    destination[axis] = 1.5 * max_length[axis] * axis_home_dir;
     feedrate = homing_feedrate[axis];
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
     st_synchronize();
 
+    enable_endstops(false);  // Ignore Z probe while moving away from the top microswitch.
     current_position[axis] = 0;
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
     destination[axis] = -home_retract_mm(axis) * axis_home_dir;
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
     st_synchronize();
+    enable_endstops(true);  // Stop ignoring Z probe while moving up to the top microswitch again.
 
     destination[axis] = 2*home_retract_mm(axis) * axis_home_dir;
 #ifdef DELTA
@@ -794,6 +842,18 @@ static void homeaxis(int axis) {
 #endif
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
     st_synchronize();
+
+#ifdef DELTA
+    // retrace by the amount specified in endstop_adj
+    if (endstop_adj[axis] * axis_home_dir < 0) {
+    enable_endstops(false);  // Ignore Z probe while moving away from the top microswitch.
+      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+    destination[axis] = endstop_adj[axis];
+    plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
+    st_synchronize();
+    enable_endstops(true);  // Stop ignoring Z probe while moving up to the top microswitch again.
+    }
+#endif
 
     axis_is_at_home(axis);
     destination[axis] = current_position[axis];
@@ -809,6 +869,285 @@ static void homeaxis(int axis) {
   }
 }
 #define HOMEAXIS(LETTER) homeaxis(LETTER##_AXIS)
+
+void set_delta_constants()
+{
+  max_length[Z_AXIS] = max_pos[Z_AXIS] - Z_MIN_POS;
+  base_max_pos[Z_AXIS]  = max_pos[Z_AXIS];
+
+  DELTA_DIAGONAL_ROD_2 = pow(delta_diagonal_rod,2);
+
+  // Effective X/Y positions of the three vertical towers.
+  delta_tower1_x = (-SIN_60 * delta_radius) + tower_adj[0]; // front left tower
+  delta_tower1_y = (-COS_60 * delta_radius) + tower_adj[1];
+  delta_tower2_x = -delta_tower1_x; // front right tower
+  delta_tower2_y = delta_tower1_y;
+  delta_tower3_x = tower_adj[2] ; // back middle tower
+  delta_tower3_y = -2 * delta_tower1_y;
+}
+
+void deploy_z_probe() {
+  feedrate = homing_feedrate[X_AXIS];
+  destination[X_AXIS] = z_probe_deploy_start_location[X_AXIS];
+  destination[Y_AXIS] = z_probe_deploy_start_location[Y_AXIS];
+  destination[Z_AXIS] = z_probe_deploy_start_location[Z_AXIS];
+  prepare_move_raw();
+
+  feedrate = homing_feedrate[X_AXIS]/10;
+  destination[X_AXIS] = z_probe_deploy_end_location[X_AXIS];
+  destination[Y_AXIS] = z_probe_deploy_end_location[Y_AXIS];
+  destination[Z_AXIS] = z_probe_deploy_end_location[Z_AXIS];
+  prepare_move_raw();
+
+  feedrate = homing_feedrate[X_AXIS];
+  destination[X_AXIS] = z_probe_deploy_start_location[X_AXIS];
+  destination[Y_AXIS] = z_probe_deploy_start_location[Y_AXIS];
+  destination[Z_AXIS] = z_probe_deploy_start_location[Z_AXIS];
+  prepare_move_raw();
+  st_synchronize();
+}
+
+void retract_z_probe() {
+  feedrate = homing_feedrate[X_AXIS];
+  destination[Z_AXIS] = 50;
+  prepare_move_raw();
+
+  destination[X_AXIS] = z_probe_retract_start_location[X_AXIS];
+  destination[Y_AXIS] = z_probe_retract_start_location[Y_AXIS];
+  destination[Z_AXIS] = z_probe_retract_start_location[Z_AXIS];
+  prepare_move_raw();
+
+  // Move the nozzle below the print surface to push the probe up.
+  feedrate = homing_feedrate[Z_AXIS]/10;
+  destination[X_AXIS] = z_probe_retract_end_location[X_AXIS];
+  destination[Y_AXIS] = z_probe_retract_end_location[Y_AXIS];
+  destination[Z_AXIS] = z_probe_retract_end_location[Z_AXIS];
+  prepare_move_raw();
+
+  feedrate = homing_feedrate[Z_AXIS];
+  destination[X_AXIS] = z_probe_retract_start_location[X_AXIS];
+  destination[Y_AXIS] = z_probe_retract_start_location[Y_AXIS];
+  destination[Z_AXIS] = z_probe_retract_start_location[Z_AXIS];
+  prepare_move_raw();
+  st_synchronize();
+}
+
+float z_probe() {
+  feedrate = homing_feedrate[X_AXIS];
+  prepare_move_raw();
+  st_synchronize();
+
+  enable_endstops(true);
+  float start_z = current_position[Z_AXIS];
+  long start_steps = st_get_position(Z_AXIS);
+
+  feedrate = homing_feedrate[Z_AXIS]/10;
+  destination[Z_AXIS] = -20;
+  prepare_move_raw();
+  st_synchronize();
+  endstops_hit_on_purpose();
+
+  enable_endstops(false);
+  long stop_steps = st_get_position(Z_AXIS);
+
+  saved_position[X_AXIS] = float((st_get_position(X_AXIS)) / axis_steps_per_unit[X_AXIS]);
+  saved_position[Y_AXIS] = float((st_get_position(Y_AXIS)) / axis_steps_per_unit[Y_AXIS]);
+  saved_position[Z_AXIS] = float((st_get_position(Z_AXIS)) / axis_steps_per_unit[Z_AXIS]);
+
+  float mm = start_z -
+    float(start_steps - stop_steps) / axis_steps_per_unit[Z_AXIS];
+  current_position[Z_AXIS] = mm;
+  calculate_delta(current_position);
+  plan_set_position(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS],
+		    current_position[E_AXIS]);
+
+  feedrate = homing_feedrate[Z_AXIS];
+  destination[Z_AXIS] = mm+2;
+  prepare_move_raw();
+  return mm;
+}
+
+void calibrate_print_surface(float z_offset) {
+  for (int y = 3; y >= -3; y--) {
+    int dir = y % 2 ? -1 : 1;
+    for (int x = -3*dir; x != 4*dir; x += dir) {
+      if (x*x + y*y < 11) {
+	destination[X_AXIS] = AUTOLEVEL_GRID * x - z_probe_offset[X_AXIS];
+	destination[Y_AXIS] = AUTOLEVEL_GRID * y - z_probe_offset[Y_AXIS];
+	bed_level[x+3][y+3] = z_probe() + z_offset;
+      } else {
+	bed_level[x+3][y+3] = 0.0;
+      }
+    }
+    // For unprobed positions just copy nearest neighbor.
+    if (abs(y) >= 3) {
+      bed_level[1][y+3] = bed_level[2][y+3];
+      bed_level[5][y+3] = bed_level[4][y+3];
+    }
+    if (abs(y) >=2) {
+      bed_level[0][y+3] = bed_level[1][y+3];
+      bed_level[6][y+3] = bed_level[5][y+3];
+    }
+    // Print calibration results for manual frame adjustment.
+    for (int x = -3; x <= 3; x++) {
+      SERIAL_PROTOCOL_F(bed_level[x+3][y+3], 3);
+      SERIAL_PROTOCOLPGM(" ");
+    }
+    SERIAL_ECHOLN("");
+  }
+}
+float probe_bed(int bedpos, int lift) {
+	//Probe bed at specified predifined location and return bed offset
+        float probe_value;
+        z_offset = z_probe_offset[Z_AXIS] + (code_seen(axis_codes[Z_AXIS]) ? code_value() : 0.0);
+	if (bedpos == 0) {
+		//centre
+	      destination[X_AXIS] = -z_probe_offset[X_AXIS];
+	      destination[Y_AXIS] = -z_probe_offset[Y_AXIS];
+	}
+	if (bedpos == 1) {
+		//z tower (back)
+	      destination[X_AXIS] = 0.0 - z_probe_offset[X_AXIS];
+	destination[Y_AXIS] = bed_radius - z_probe_offset[Y_AXIS];
+	}
+	if (bedpos == 2) {
+		//opposite y tower (back left)
+	      destination[X_AXIS] = (-SIN_60*bed_radius)- z_probe_offset[X_AXIS];
+	destination[Y_AXIS] = (COS_60*bed_radius)- z_probe_offset[Y_AXIS];
+	}
+	if (bedpos == 3) {
+		//x tower (front left)
+	      destination[X_AXIS] = (-SIN_60*bed_radius)- z_probe_offset[X_AXIS];
+	destination[Y_AXIS] = (-COS_60*bed_radius)- z_probe_offset[Y_AXIS];
+	}
+	if (bedpos == 4) {
+		//opposite z tower (front)
+	      destination[X_AXIS] = 0.0 - z_probe_offset[X_AXIS];
+	destination[Y_AXIS] =  -bed_radius - z_probe_offset[Y_AXIS];
+	}
+	if (bedpos == 5) {
+		//y tower (front right)
+		destination[X_AXIS] = (SIN_60*bed_radius) - z_probe_offset[X_AXIS];
+	      destination[Y_AXIS] = (-COS_60*bed_radius) - z_probe_offset[Y_AXIS];
+	}
+	if (bedpos == 6) {
+		//opposite x tower (back right)
+		destination[X_AXIS] = (SIN_60*bed_radius)- z_probe_offset[X_AXIS];
+	destination[Y_AXIS] = (COS_60*bed_radius)- z_probe_offset[Y_AXIS];
+	}
+
+      probe_value = z_probe() + z_offset;
+      destination[Z_AXIS] = destination[Z_AXIS] + lift;
+      prepare_move_raw();
+      return probe_value;
+}
+void calibration_report() {
+
+      //Move to start position
+      destination[X_AXIS] = -z_probe_offset[X_AXIS];
+      destination[Y_AXIS] = -z_probe_offset[Y_AXIS];
+      feedrate = homing_feedrate[X_AXIS];
+      destination[Z_AXIS] = 20;
+      prepare_move_raw();
+
+      //Probe all bed positions & output report
+      bed_level_c = probe_bed(0,5);
+      bed_level_z = probe_bed(1,5);
+      bed_level_oy = probe_bed(2,5);
+      bed_level_x = probe_bed(3,5);
+      bed_level_oz = probe_bed(4,5);
+      bed_level_y = probe_bed(5,5);
+      bed_level_ox = probe_bed(6,5);
+
+      //Display Report
+      SERIAL_ECHOLN("               Z-Tower");
+      SERIAL_ECHOLN("");
+      SERIAL_PROTOCOLPGM("                ");
+      SERIAL_PROTOCOL_F(bed_level_z, 4);
+      SERIAL_ECHOLN("                            Endstop Offsets");
+      SERIAL_ECHOLN("");
+      SERIAL_PROTOCOLPGM("       ");
+      SERIAL_PROTOCOL_F(bed_level_oy, 4);
+      SERIAL_PROTOCOLPGM("            ");
+      SERIAL_PROTOCOL_F(bed_level_ox, 4);
+      SERIAL_ECHOPAIR("          X: ",endstop_adj[0]);
+      SERIAL_ECHOPAIR(" Y: ",endstop_adj[1]);
+      SERIAL_ECHOPAIR(" Z: ",endstop_adj[2]);
+      SERIAL_ECHOLN("");
+      SERIAL_PROTOCOLPGM("                ");
+      SERIAL_PROTOCOL_F(bed_level_c, 4);
+      SERIAL_ECHOLN("                         Tower Position Adjust: ");
+      SERIAL_PROTOCOLPGM("        ");
+      SERIAL_PROTOCOL_F(bed_level_x, 4);
+      SERIAL_PROTOCOLPGM("            ");
+      SERIAL_PROTOCOL_F(bed_level_y, 4);
+      SERIAL_ECHOPAIR("         A: ",tower_adj[0]);
+      SERIAL_ECHOPAIR(" B: ",tower_adj[1]);
+      SERIAL_ECHOPAIR(" C: ",tower_adj[2]);
+      SERIAL_ECHOLN("");
+      SERIAL_PROTOCOLPGM("                ");
+      SERIAL_PROTOCOL_F(bed_level_oz, 4);
+      SERIAL_PROTOCOLPGM("                        Delta Radius: ");
+      SERIAL_PROTOCOL_F(delta_radius, 4);
+      SERIAL_ECHOLN("");
+      SERIAL_PROTOCOLPGM("    X-Tower                Y-Tower       Diag Rod: ");
+      SERIAL_PROTOCOL_F(delta_diagonal_rod, 4);
+      SERIAL_ECHOLN("");
+}
+
+void store_position(int position_num) {
+      saved_positions[position_num][X_AXIS] = saved_position[X_AXIS];
+      saved_positions[position_num][Y_AXIS] = saved_position[Y_AXIS];
+      saved_positions[position_num][Z_AXIS] = saved_position[Z_AXIS];
+}
+
+void home_delta_axis() {
+    saved_feedrate = feedrate;
+    saved_feedmultiply = feedmultiply;
+    feedmultiply = 100;
+    previous_millis_cmd = millis();
+
+    enable_endstops(true);
+
+    for(int8_t i=0; i < NUM_AXIS; i++) {
+      destination[i] = current_position[i];
+      }
+    feedrate = 0.0;
+    // Move all carriages up together until the first endstop is hit.
+    current_position[X_AXIS] = 0;
+    current_position[Y_AXIS] = 0;
+    current_position[Z_AXIS] = 0;
+    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+
+    destination[X_AXIS] = 3 * max_length[Z_AXIS];
+    destination[Y_AXIS] = 3 * max_length[Z_AXIS];
+    destination[Z_AXIS] = 3 * max_length[Z_AXIS];
+    feedrate = 1.732 * homing_feedrate[X_AXIS];
+    plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
+    st_synchronize();
+    endstops_hit_on_purpose();
+
+    current_position[X_AXIS] = destination[X_AXIS];
+    current_position[Y_AXIS] = destination[Y_AXIS];
+    current_position[Z_AXIS] = destination[Z_AXIS];
+
+    // take care of back off and rehome now we are all at the top
+    HOMEAXIS(X);
+    HOMEAXIS(Y);
+    HOMEAXIS(Z);
+
+    calculate_delta(current_position);
+    plan_set_position(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS], current_position[E_AXIS]);
+
+    #ifdef ENDSTOPS_ONLY_FOR_HOMING
+       enable_endstops(false);
+    #endif
+
+    feedrate = saved_feedrate;
+    feedmultiply = saved_feedmultiply;
+    previous_millis_cmd = millis();
+    endstops_hit_on_purpose();
+}
 
 void process_commands()
 {
@@ -908,9 +1247,9 @@ void process_commands()
           current_position[Z_AXIS] = 0;
           plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
 
-          destination[X_AXIS] = 3 * Z_MAX_LENGTH;
-          destination[Y_AXIS] = 3 * Z_MAX_LENGTH;
-          destination[Z_AXIS] = 3 * Z_MAX_LENGTH;
+          destination[X_AXIS] = 3 * max_length[Z_AXIS];
+          destination[Y_AXIS] = 3 * max_length[Z_AXIS];
+          destination[Z_AXIS] = 3 * max_length[Z_AXIS];
           feedrate = 1.732 * homing_feedrate[X_AXIS];
           plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
           st_synchronize();
@@ -951,7 +1290,7 @@ void process_commands()
        #endif
 
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        destination[X_AXIS] = 1.5 * max_length(X_AXIS) * x_axis_home_dir;destination[Y_AXIS] = 1.5 * max_length(Y_AXIS) * home_dir(Y_AXIS);
+        destination[X_AXIS] = 1.5 * max_length[X_AXIS] * x_axis_home_dir;destination[Y_AXIS] = 1.5 * max_length[Y_AXIS] * home_dir(Y_AXIS);
         feedrate = homing_feedrate[X_AXIS];
         if(homing_feedrate[Y_AXIS]<feedrate)
           feedrate =homing_feedrate[Y_AXIS];
@@ -1033,6 +1372,129 @@ void process_commands()
       previous_millis_cmd = millis();
       endstops_hit_on_purpose();
       break;
+    case 29: // G29 Calibrate print surface with automatic Z probe.
+      saved_feedrate = feedrate;
+      saved_feedmultiply = feedmultiply;
+      feedmultiply = 100;
+
+      deploy_z_probe();
+      calibrate_print_surface(z_probe_offset[Z_AXIS] +
+	(code_seen(axis_codes[Z_AXIS]) ? code_value() : 0.0));
+      retract_z_probe();
+
+      feedrate = saved_feedrate;
+      feedmultiply = saved_feedmultiply;
+      previous_millis_cmd = millis();
+      endstops_hit_on_purpose();
+      break;
+    case 30: //G30 Delta AutoCalibration
+      float adj_ya, adj_xc, adj_r, adj_dr;
+      int iterations;
+
+      saved_feedrate = feedrate;
+      saved_feedmultiply = feedmultiply;
+      feedmultiply = 100;
+
+      if (code_seen('A')) SERIAL_ECHOLN("Starting Auto Calibration..");
+
+      home_delta_axis();
+      deploy_z_probe();
+
+      //Probe all bed positions and show report
+      calibration_report();
+
+      if (code_seen('A'))
+        {
+	  iterations = 50;
+	  loopcount = 1;
+	  do {
+
+            if ((bed_level_c > 5) or (bed_level_c < -5))
+              {
+                //Build height is not set correctly ..
+                max_pos[Z_AXIS] -= bed_level_c + 2;
+                SERIAL_ECHOPAIR("Adjusting Z-Height to: ", max_pos[Z_AXIS]);
+                SERIAL_ECHOLN(" mm..");
+              } else
+                  {
+                  SERIAL_ECHOPAIR("Z-Height: ", max_pos[Z_AXIS]);
+                  SERIAL_ECHOLN(" mm (OK)");
+                  if ((bed_level_x < -ac_prec) or (bed_level_x > ac_prec) or (bed_level_y < -ac_prec) or (bed_level_y > ac_prec) or (bed_level_z < -ac_prec) or (bed_level_z > ac_prec)) {
+	          //Endstops req adjustment
+                  SERIAL_ECHOLN("Adjusting Endstops..");
+		  endstop_adj[0] += bed_level_x;
+		  endstop_adj[1] += bed_level_y;
+		  endstop_adj[2] += bed_level_z;
+                  }
+                  else
+                    {
+                    SERIAL_ECHOLN("Endstops: OK");
+                    if ((bed_level_c < -ac_prec) or (bed_level_c > ac_prec))
+                      {
+                     //delta radius adjustment
+                     SERIAL_ECHOLN("Adjusting Delta Radius..");
+                     adj_r = bed_level_c + ((bed_level_x + bed_level_y + bed_level_z) / 3);
+                     delta_radius -= adj_r;
+                      }
+                      else
+                        {
+                        SERIAL_ECHOLN("Delta Radius:OK");
+                        adj_ya = bed_level_oz - ((bed_level_ox + bed_level_oy)/2);
+                        adj_xc = bed_level_oy - bed_level_ox;
+                        if ((adj_ya < -ac_prec) or (adj_ya > ac_prec) or (adj_xc < -ac_prec) or (adj_xc > ac_prec))
+                          {
+                          //delta radius adjustment
+                          SERIAL_ECHOLN("Adjusting Delta Geometry..");
+                          tower_adj[1] -= adj_ya;
+	                  tower_adj[2] -= adj_xc;
+                          }
+                          else
+                            {
+                            SERIAL_ECHOLN("Delta Geometry: OK");
+                            adj_dr = bed_level_c + ((bed_level_ox + bed_level_oy + bed_level_oz) / 3);
+                            if ((adj_dr < -ac_prec) or (adj_dr > ac_prec))
+                              {
+                              SERIAL_ECHOLN("Adjusting Diagonal Rod..");
+                              delta_diagonal_rod -= adj_dr;
+                              }
+                              else
+                                {
+                                SERIAL_ECHOLN("Diagonal Rod: OK");
+                                }
+                             }
+                          }
+                       }
+                    }
+
+		set_delta_constants();
+
+		//home, probe and display report
+		home_delta_axis();
+		calibration_report();
+
+		loopcount ++;
+
+		//If all points across the bed are at 0 - then autocalibration is complete!
+		if ((bed_level_x >= -ac_prec) and (bed_level_x <= ac_prec)
+                    and (bed_level_y >= -ac_prec) and (bed_level_y <= ac_prec)
+                    and (bed_level_z >= -ac_prec) and (bed_level_z <= ac_prec)
+                    and (bed_level_c >= -ac_prec) and (bed_level_c <= ac_prec)
+                    and (bed_level_ox >= -ac_prec) and (bed_level_ox <= ac_prec)
+                    and (bed_level_oy >= -ac_prec) and (bed_level_oy <= ac_prec)
+                    and (bed_level_oz >= -ac_prec) and (bed_level_oz <= ac_prec)) loopcount = iterations;
+
+		} while(loopcount < iterations);
+           }
+
+	SERIAL_ECHOLN("Auto Calibration Complete");
+        SERIAL_ECHOLN("Issue M500 Command to save calibration settings to EPROM (if enabled)");
+
+	retract_z_probe();
+
+        //Restore saved variables
+        feedrate = saved_feedrate;
+        feedmultiply = saved_feedmultiply;
+        break;
     case 90: // G90
       relative_mode = false;
       break;
@@ -1658,6 +2120,59 @@ void process_commands()
         if(code_seen(axis_codes[i])) add_homeing[i] = code_value();
       }
       break;
+    #ifdef DELTA
+      case 666: // M666 set delta endstop and geometry adjustment
+         for(int8_t i=0; i < 3; i++)
+         {
+           if(code_seen(axis_codes[i])) endstop_adj[i] = code_value();
+         }
+	   if(code_seen('A')) {
+		tower_adj[0] = code_value();
+		set_delta_constants();
+	   }
+	   if(code_seen('B')) {
+		tower_adj[1] = code_value();
+		set_delta_constants();
+	   }
+	   if(code_seen('C')) {
+		tower_adj[2] = code_value();
+		set_delta_constants();
+	   }
+         if(code_seen('R')) {
+           delta_radius = code_value();
+           set_delta_constants();
+         }
+         if(code_seen('D')) {
+           delta_diagonal_rod = code_value();
+           set_delta_constants();
+         }
+         if(code_seen('H')) {
+           max_pos[Z_AXIS]= code_value();
+	     set_delta_constants();
+         }
+	   if(code_seen('L')) {
+	     SERIAL_ECHOLN("Current Delta geometry values:");
+	     SERIAL_ECHOPAIR("X (Endstop Adj): ",endstop_adj[0]);
+             SERIAL_ECHOLN("");
+	     SERIAL_ECHOPAIR("Y (Endstop Adj): ",endstop_adj[1]);
+             SERIAL_ECHOLN("");
+	     SERIAL_ECHOPAIR("Z (Endstop Adj): ",endstop_adj[2]);
+             SERIAL_ECHOLN("");
+             SERIAL_ECHOPAIR("A Tower Adj(xa): ",tower_adj[0]);
+             SERIAL_ECHOLN("");
+             SERIAL_ECHOPAIR("B Tower Adj(ya): ",tower_adj[1]);
+             SERIAL_ECHOLN("");
+             SERIAL_ECHOPAIR("C Tower Adj(xc): ",tower_adj[2]);
+	     SERIAL_ECHOLN("");
+             SERIAL_ECHOPAIR("R(delta radius): ",delta_radius);
+             SERIAL_ECHOLN("");
+             SERIAL_ECHOPAIR("D(diagonal rod): ",delta_diagonal_rod);
+	     SERIAL_ECHOLN("");
+             SERIAL_ECHOPAIR("H    (Z-Height): ",max_pos[Z_AXIS]);
+             SERIAL_ECHOLN("");
+             }
+         break;
+    #endif
     #ifdef FWRETRACT
     case 207: //M207 - set retract length S[positive mm] F[feedrate mm/sec] Z[additional zlift/hop]
     {
@@ -2245,6 +2760,7 @@ void process_commands()
           active_extruder_parked = true;
           delayed_move_time = 0;
         }
+
       #else    
         // Offset extruder (only by XY)
         int i;
@@ -2395,18 +2911,20 @@ void clamp_to_software_endstops(float target[3])
 #ifdef DELTA
 void calculate_delta(float cartesian[3])
 {
-  delta[X_AXIS] = sqrt(DELTA_DIAGONAL_ROD_2
-                       - sq(DELTA_TOWER1_X-cartesian[X_AXIS])
-                       - sq(DELTA_TOWER1_Y-cartesian[Y_AXIS])
+  delta_tmp[X_AXIS] = sqrt(DELTA_DIAGONAL_ROD_2
+                       - sq(delta_tower1_x-cartesian[X_AXIS])
+                       - sq(delta_tower1_y-cartesian[Y_AXIS])
                        ) + cartesian[Z_AXIS];
-  delta[Y_AXIS] = sqrt(DELTA_DIAGONAL_ROD_2
-                       - sq(DELTA_TOWER2_X-cartesian[X_AXIS])
-                       - sq(DELTA_TOWER2_Y-cartesian[Y_AXIS])
+  delta_tmp[Y_AXIS] = sqrt(DELTA_DIAGONAL_ROD_2
+                       - sq(delta_tower2_x-cartesian[X_AXIS])
+                       - sq(delta_tower2_y-cartesian[Y_AXIS])
                        ) + cartesian[Z_AXIS];
-  delta[Z_AXIS] = sqrt(DELTA_DIAGONAL_ROD_2
-                       - sq(DELTA_TOWER3_X-cartesian[X_AXIS])
-                       - sq(DELTA_TOWER3_Y-cartesian[Y_AXIS])
+  delta_tmp[Z_AXIS] = sqrt(DELTA_DIAGONAL_ROD_2
+                       - sq(delta_tower3_x-cartesian[X_AXIS])
+                       - sq(delta_tower3_y-cartesian[Y_AXIS])
                        ) + cartesian[Z_AXIS];
+
+
   /*
   SERIAL_ECHOPGM("cartesian x="); SERIAL_ECHO(cartesian[X_AXIS]);
   SERIAL_ECHOPGM(" y="); SERIAL_ECHO(cartesian[Y_AXIS]);
@@ -2416,8 +2934,66 @@ void calculate_delta(float cartesian[3])
   SERIAL_ECHOPGM(" y="); SERIAL_ECHO(delta[Y_AXIS]);
   SERIAL_ECHOPGM(" z="); SERIAL_ECHOLN(delta[Z_AXIS]);
   */
+
+  if ((delta_tmp[X_AXIS] > 0) and (delta_tmp[Y_AXIS] > 0) and (delta_tmp[Z_AXIS] > 0))
+    {
+      delta[X_AXIS] = delta_tmp[X_AXIS];
+      delta[Y_AXIS] = delta_tmp[Y_AXIS];
+      delta[Z_AXIS] = delta_tmp[Z_AXIS];
+    } else SERIAL_ECHOLN("ERROR: Invalid delta coordinates!");
+}
+
+
+// Adjust print surface height by linear interpolation over the bed_level array.
+void adjust_delta(float cartesian[3])
+{
+  float grid_x = max(-2.999, min(2.999, cartesian[X_AXIS] / AUTOLEVEL_GRID));
+  float grid_y = max(-2.999, min(2.999, cartesian[Y_AXIS] / AUTOLEVEL_GRID));
+  int floor_x = floor(grid_x);
+  int floor_y = floor(grid_y);
+  float ratio_x = grid_x - floor_x;
+  float ratio_y = grid_y - floor_y;
+  float z1 = bed_level[floor_x+3][floor_y+3];
+  float z2 = bed_level[floor_x+3][floor_y+4];
+  float z3 = bed_level[floor_x+4][floor_y+3];
+  float z4 = bed_level[floor_x+4][floor_y+4];
+  float left = (1-ratio_y)*z1 + ratio_y*z2;
+  float right = (1-ratio_y)*z3 + ratio_y*z4;
+  float offset = (1-ratio_x)*left + ratio_x*right;
+
+  delta[X_AXIS] += offset;
+  delta[Y_AXIS] += offset;
+  delta[Z_AXIS] += offset;
+
+  /*
+  SERIAL_ECHOPGM("grid_x="); SERIAL_ECHO(grid_x);
+  SERIAL_ECHOPGM(" grid_y="); SERIAL_ECHO(grid_y);
+  SERIAL_ECHOPGM(" floor_x="); SERIAL_ECHO(floor_x);
+  SERIAL_ECHOPGM(" floor_y="); SERIAL_ECHO(floor_y);
+  SERIAL_ECHOPGM(" ratio_x="); SERIAL_ECHO(ratio_x);
+  SERIAL_ECHOPGM(" ratio_y="); SERIAL_ECHO(ratio_y);
+  SERIAL_ECHOPGM(" z1="); SERIAL_ECHO(z1);
+  SERIAL_ECHOPGM(" z2="); SERIAL_ECHO(z2);
+  SERIAL_ECHOPGM(" z3="); SERIAL_ECHO(z3);
+  SERIAL_ECHOPGM(" z4="); SERIAL_ECHO(z4);
+  SERIAL_ECHOPGM(" left="); SERIAL_ECHO(left);
+  SERIAL_ECHOPGM(" right="); SERIAL_ECHO(right);
+  SERIAL_ECHOPGM(" offset="); SERIAL_ECHOLN(offset);
+  */
 }
 #endif
+
+void prepare_move_raw()
+{
+  previous_millis_cmd = millis();
+  calculate_delta(destination);
+  plan_buffer_line(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS],
+		   destination[E_AXIS], feedrate*feedmultiply/60/100.0,
+		   active_extruder);
+  for(int8_t i=0; i < NUM_AXIS; i++) {
+    current_position[i] = destination[i];
+  }
+}
 
 void prepare_move()
 {
@@ -2445,6 +3021,7 @@ void prepare_move()
       destination[i] = current_position[i] + difference[i] * fraction;
     }
     calculate_delta(destination);
+    adjust_delta(destination);
     plan_buffer_line(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS],
                      destination[E_AXIS], feedrate*feedmultiply/60/100.0,
                      active_extruder);
