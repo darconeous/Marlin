@@ -1129,6 +1129,7 @@ void refresh_cmd_timeout(void)
       plan_set_e_position(current_position[E_AXIS]);
       float oldFeedrate = feedrate;
       feedrate=retract_feedrate*60;
+      feedrate=feedrate*100/feedmultiply; // Factor out the feed multiply
       retracted=true;
       prepare_move();
       current_position[Z_AXIS]-=retract_zlift;
@@ -1157,6 +1158,7 @@ void refresh_cmd_timeout(void)
       plan_set_e_position(current_position[E_AXIS]);
       float oldFeedrate = feedrate;
       feedrate=retract_recover_feedrate*60;
+      feedrate=feedrate*100/feedmultiply; // Factor out the feed multiply
       retracted=false;
       prepare_move();
       feedrate = oldFeedrate;
