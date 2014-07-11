@@ -46,7 +46,16 @@ void mc_arc(float *position, float *target, float *offset, uint8_t axis_0, uint8
   
   float millimeters_of_travel = hypot(angular_travel*radius, fabs(linear_travel));
   if (millimeters_of_travel < 0.001) { return; }
+
+#ifdef DELTA
+  // On delta printers we calculate the number of segments
+  // based on delta_segments_per_second
+  float seconds = millimeters_of_travel / feed_rate;
+  uint16_t segments = uint16_t(delta_segments_per_second * seconds);
+#else
   uint16_t segments = floor(millimeters_of_travel/MM_PER_ARC_SEGMENT);
+#endif
+
   if(segments == 0) segments = 1;
   
   /*  
@@ -126,12 +135,22 @@ void mc_arc(float *position, float *target, float *offset, uint8_t axis_0, uint8
     arc_target[E_AXIS] += extruder_per_segment;
 
     clamp_to_software_endstops(arc_target);
+
+#ifdef DELTA
+    calculate_delta(arc_target);
+    plan_buffer_line(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS], arc_target[E_AXIS], feed_rate, extruder);
+#else
     plan_buffer_line(arc_target[X_AXIS], arc_target[Y_AXIS], arc_target[Z_AXIS], arc_target[E_AXIS], feed_rate, extruder);
-    
+#endif
   }
   // Ensure last segment arrives at target location.
-  plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], feed_rate, extruder);
 
+#ifdef DELTA
+  calculate_delta(target);
+  plan_buffer_line(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS], arc_target[E_AXIS], feed_rate, extruder);
+#else
+  plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], feed_rate, extruder);
+#endif
   //   plan_set_acceleration_manager_enabled(acceleration_manager_was_enabled);
 }
 

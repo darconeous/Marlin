@@ -242,7 +242,7 @@ int EtoPPressure=0;
 #endif
 
 #ifdef FWRETRACT
-  bool autoretract_enabled=false;
+  bool autoretract_enabled=RETRACT_AUTORETRACT;
   bool retracted=false;
   float retract_length = RETRACT_LENGTH;
   float retract_feedrate = RETRACT_FEEDRATE;
@@ -1129,7 +1129,6 @@ void refresh_cmd_timeout(void)
       plan_set_e_position(current_position[E_AXIS]);
       float oldFeedrate = feedrate;
       feedrate=retract_feedrate*60;
-      feedrate=feedrate*100/feedmultiply; // Factor out the feed multiply
       retracted=true;
       prepare_move();
       current_position[Z_AXIS]-=retract_zlift;
@@ -1158,7 +1157,6 @@ void refresh_cmd_timeout(void)
       plan_set_e_position(current_position[E_AXIS]);
       float oldFeedrate = feedrate;
       feedrate=retract_recover_feedrate*60;
-      feedrate=feedrate*100/feedmultiply; // Factor out the feed multiply
       retracted=false;
       prepare_move();
       feedrate = oldFeedrate;
@@ -1183,7 +1181,7 @@ void process_commands()
         get_coordinates(); // For X Y Z E F
           #ifdef FWRETRACT
             if(autoretract_enabled)
-            if( !(code_seen('X') || code_seen('Y') || code_seen('Z')) && code_seen('E')) {
+            if( !(code_seen('X') || code_seen('Y') /*|| code_seen('Z')*/) && code_seen('E')) {
               float echange=destination[E_AXIS]-current_position[E_AXIS];
               if((echange<-MIN_RETRACT && !retracted) || (echange>MIN_RETRACT && retracted)) { //move appears to be an attempt to retract or recover
                   current_position[E_AXIS] = destination[E_AXIS]; //hide the slicer-generated retract/recover from calculations
@@ -2573,7 +2571,7 @@ void process_commands()
       break;
     #endif // NUM_SERVOS > 0
 
-    #if (LARGE_FLASH == true && ( BEEPER > 0 || defined(ULTRALCD) || defined(LCD_USE_I2C_BUZZER)))
+    #if (LARGE_FLASH == true && ( BEEPER > 0 || defined(ULTRA_LCD) || defined(LCD_USE_I2C_BUZZER)))
     case 300: // M300
     {
       int beepS = code_seen('S') ? code_value() : 110;
@@ -2584,7 +2582,7 @@ void process_commands()
           tone(BEEPER, beepS);
           delay(beepP);
           noTone(BEEPER);
-        #elif defined(ULTRALCD)
+        #elif defined(ULTRA_LCD)
 		  lcd_buzz(beepS, beepP);
 		#elif defined(LCD_USE_I2C_BUZZER)
 		  lcd_buzz(beepP, beepS);
@@ -3218,6 +3216,15 @@ void get_arc_coordinates()
 
 void clamp_to_software_endstops(float target[3])
 {
+#ifdef DELTA_PRINTABLE_RADIUS
+  if ((sq(target[X_AXIS])+sq(target[Y_AXIS])) > sq(DELTA_PRINTABLE_RADIUS)) {
+    float factor = DELTA_PRINTABLE_RADIUS / sqrt(sq(target[X_AXIS])+sq(target[Y_AXIS]));
+    SERIAL_ECHOPGM(" DELTA OOB: Factor: "); SERIAL_ECHOLN(factor);
+
+    target[X_AXIS] *= factor;
+    target[Y_AXIS] *= factor;
+  }
+#endif
   if (min_software_endstops) {
     if (target[X_AXIS] < min_pos[X_AXIS]) target[X_AXIS] = min_pos[X_AXIS];
     if (target[Y_AXIS] < min_pos[Y_AXIS]) target[Y_AXIS] = min_pos[Y_AXIS];
@@ -3243,6 +3250,35 @@ void recalc_delta_settings(float radius, float diagonal_rod)
 	 delta_diagonal_rod_2= sq(diagonal_rod);
 }
 
+void calculate_delta_fast(float cartesian[3])
+{
+#ifdef DELTA_FASTSQRT
+  delta[X_AXIS] = fastsqrt(delta_diagonal_rod_2
+                       - sq(delta_tower1_x-cartesian[X_AXIS])
+                       - sq(delta_tower1_y-cartesian[Y_AXIS])
+                       ) + cartesian[Z_AXIS];
+  delta[Y_AXIS] = fastsqrt(delta_diagonal_rod_2
+                       - sq(delta_tower2_x-cartesian[X_AXIS])
+                       - sq(delta_tower2_y-cartesian[Y_AXIS])
+                       ) + cartesian[Z_AXIS];
+  delta[Z_AXIS] = fastsqrt(delta_diagonal_rod_2
+                       - sq(delta_tower3_x-cartesian[X_AXIS])
+                       - sq(delta_tower3_y-cartesian[Y_AXIS])
+                       ) + cartesian[Z_AXIS];
+#else
+  calculate_delta(cartesian);
+#endif
+/*
+  SERIAL_ECHOPGM("f cartesian x="); SERIAL_ECHO(cartesian[X_AXIS]);
+  SERIAL_ECHOPGM("f y="); SERIAL_ECHO(cartesian[Y_AXIS]);
+  SERIAL_ECHOPGM("f z="); SERIAL_ECHOLN(cartesian[Z_AXIS]);
+
+  SERIAL_ECHOPGM("f delta x="); SERIAL_ECHO(delta[X_AXIS]);
+  SERIAL_ECHOPGM("f y="); SERIAL_ECHO(delta[Y_AXIS]);
+  SERIAL_ECHOPGM("f z="); SERIAL_ECHOLN(delta[Z_AXIS]);
+*/
+}
+
 void calculate_delta(float cartesian[3])
 {
   delta[X_AXIS] = sqrt(delta_diagonal_rod_2
@@ -3257,7 +3293,7 @@ void calculate_delta(float cartesian[3])
                        - sq(delta_tower3_x-cartesian[X_AXIS])
                        - sq(delta_tower3_y-cartesian[Y_AXIS])
                        ) + cartesian[Z_AXIS];
-  /*
+/*
   SERIAL_ECHOPGM("cartesian x="); SERIAL_ECHO(cartesian[X_AXIS]);
   SERIAL_ECHOPGM(" y="); SERIAL_ECHO(cartesian[Y_AXIS]);
   SERIAL_ECHOPGM(" z="); SERIAL_ECHOLN(cartesian[Z_AXIS]);
@@ -3265,7 +3301,7 @@ void calculate_delta(float cartesian[3])
   SERIAL_ECHOPGM("delta x="); SERIAL_ECHO(delta[X_AXIS]);
   SERIAL_ECHOPGM(" y="); SERIAL_ECHO(delta[Y_AXIS]);
   SERIAL_ECHOPGM(" z="); SERIAL_ECHOLN(delta[Z_AXIS]);
-  */
+//*/
 }
 #endif
 
@@ -3282,21 +3318,35 @@ void prepare_move()
   float cartesian_mm = sqrt(sq(difference[X_AXIS]) +
                             sq(difference[Y_AXIS]) +
                             sq(difference[Z_AXIS]));
-  if (cartesian_mm < 0.000001) { cartesian_mm = abs(difference[E_AXIS]); }
-  if (cartesian_mm < 0.000001) { return; }
+  if (cartesian_mm < 0.000001f) { cartesian_mm = abs(difference[E_AXIS]); }
+  if (cartesian_mm < 0.000001f) { return; }
   float seconds = 6000 * cartesian_mm / feedrate / feedmultiply;
   int steps = max(1, int(delta_segments_per_second * seconds));
+  float step_feedrate;
+
+  // Do not use feedmultiply for E or Z only moves
+  if( (current_position[X_AXIS] == destination [X_AXIS]) && (current_position[Y_AXIS] == destination [Y_AXIS])) {
+    step_feedrate = feedrate/60.0f;
+  } else {
+    step_feedrate = feedrate*feedmultiply/60.0f/100.0f;
+  }
+
   // SERIAL_ECHOPGM("mm="); SERIAL_ECHO(cartesian_mm);
   // SERIAL_ECHOPGM(" seconds="); SERIAL_ECHO(seconds);
   // SERIAL_ECHOPGM(" steps="); SERIAL_ECHOLN(steps);
+  float inv_steps = 1.0f/float(steps);
   for (int s = 1; s <= steps; s++) {
-    float fraction = float(s) / float(steps);
+    float fraction = float(s) * inv_steps;
     for(int8_t i=0; i < NUM_AXIS; i++) {
       destination[i] = current_position[i] + difference[i] * fraction;
     }
-    calculate_delta(destination);
+    if (s != steps)
+      calculate_delta_fast(destination);
+    else
+      calculate_delta(destination);
+
     plan_buffer_line(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS],
-                     destination[E_AXIS], feedrate*feedmultiply/60/100.0,
+                     destination[E_AXIS], step_feedrate,
                      active_extruder);
   }
 #else

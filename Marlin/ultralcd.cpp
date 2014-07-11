@@ -59,6 +59,7 @@ static void lcd_control_motion_menu();
 static void lcd_set_contrast();
 #endif
 static void lcd_control_retract_menu();
+static void lcd_control_delta_menu();
 static void lcd_sdcard_menu();
 
 static void lcd_quick_feedback();//Cause an LCD refresh, and give the user visual or audible feedback that something has happened
@@ -763,6 +764,9 @@ static void lcd_control_menu()
 //    MENU_ITEM_EDIT(int3, MSG_CONTRAST, &lcd_contrast, 0, 63);
     MENU_ITEM(submenu, MSG_CONTRAST, lcd_set_contrast);
 #endif
+#ifdef DELTA
+    MENU_ITEM(submenu, MSG_DELTA, lcd_control_delta_menu);
+#endif
 #ifdef FWRETRACT
     MENU_ITEM(submenu, MSG_RETRACT, lcd_control_retract_menu);
 #endif
@@ -917,6 +921,18 @@ static void lcd_control_retract_menu()
     MENU_ITEM_EDIT(float52, MSG_CONTROL_RETRACT_ZLIFT, &retract_zlift, 0, 999);
     MENU_ITEM_EDIT(float52, MSG_CONTROL_RETRACT_RECOVER, &retract_recover_length, 0, 100);
     MENU_ITEM_EDIT(float3, MSG_CONTROL_RETRACT_RECOVERF, &retract_recover_feedrate, 1, 999);
+    END_MENU();
+}
+#endif
+
+#ifdef DELTA
+static void lcd_control_delta_menu()
+{
+    START_MENU();
+    MENU_ITEM(back, MSG_CONTROL, lcd_control_menu);
+    MENU_ITEM_EDIT(float3, MSG_CONTROL_DELTA_SEGMENTS_PER_SECOND, &delta_segments_per_second, 10, 990);
+    MENU_ITEM_EDIT(float52, MSG_CONTROL_DELTA_DIAGONAL_ROD, &delta_diagonal_rod, 0.01, 999);
+    MENU_ITEM_EDIT(float52, MSG_CONTROL_DELTA_RADIUS, &delta_radius, 0.01, 999);
     END_MENU();
 }
 #endif
