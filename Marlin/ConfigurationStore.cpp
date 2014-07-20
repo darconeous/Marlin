@@ -167,13 +167,13 @@ void Config_PrintSettings()
       SERIAL_ECHOPAIR("  M666 A",tower_adj[0]);
       SERIAL_ECHOPAIR(" B" ,tower_adj[1]);
       SERIAL_ECHOPAIR(" C" ,tower_adj[2]);
-      SERIAL_ECHOPAIR(" E" ,tower_adj[3]);
-      SERIAL_ECHOPAIR(" F" ,tower_adj[4]);
-      SERIAL_ECHOPAIR(" G" ,tower_adj[5]);
+      SERIAL_ECHOPAIR(" I" ,tower_adj[3]);
+      SERIAL_ECHOPAIR(" J" ,tower_adj[4]);
+      SERIAL_ECHOPAIR(" K" ,tower_adj[5]);
       SERIAL_ECHOPAIR(" R" ,delta_radius);
       SERIAL_ECHOPAIR(" D" ,delta_diagonal_rod);
       SERIAL_ECHOPAIR(" H" ,max_pos[2]);
-      SERIAL_ECHOPAIR(" P" ,z_probe_offset[3]);
+      SERIAL_ECHOPAIR(" P" ,z_probe_offset[Z_AXIS]);
       SERIAL_ECHOLN("");
 /*
       SERIAL_ECHOLN("Tower Positions");

@@ -87,8 +87,8 @@
 #define DELTA_SEGMENTS_PER_SECOND 89
 
 // Center-to-center distance of the holes in the diagonal push rods.
-#define DEFAULT_DELTA_DIAGONAL_ROD (198/1.001425) // mm
-//#define DELTA_DIAGONAL_ROD (196.6) // mm
+//#define DEFAULT_DELTA_DIAGONAL_ROD (198/1.001425) // mm
+#define DEFAULT_DELTA_DIAGONAL_ROD (196.4) // mm
 
 // Horizontal offset from middle of printer to smooth rod center.
 #define DELTA_SMOOTH_ROD_OFFSET (133.54) // mm
@@ -101,23 +101,23 @@
 
 #define DEFAULT_DELTA_RADIUS  (96.5-1.0)
 
-#define DELTA_PRINTABLE_RADIUS  (90.0)
+#define DELTA_PRINTABLE_RADIUS  (170.0)
 
 // Precision for G30 delta autocalibration function
 #define AUTOCALIBRATION_PRECISION 0.06 // mm
 
 // Diameter of print bed - this is used to set the distance that autocalibration probes the bed at.
-#define BED_DIAMETER 70 // mm
+#define BED_DIAMETER 150 // mm
 
 // Z-Probe variables
 // Start and end location values are used to deploy/retract the probe (will move from start to end and back again)
-#define Z_PROBE_OFFSET {0, 0, 0, 0}  // X, Y, Z, E distance between hotend nozzle and deployed bed leveling probe.
-#define Z_PROBE_DEPLOY_START_LOCATION {20, 96, 30, 0}   // X, Y, Z, E start location for z-probe deployment sequence
-#define Z_PROBE_DEPLOY_END_LOCATION {5, 96, 30, 0} 	  // X, Y, Z, E end location for z-probe deployment sequence
-#define Z_PROBE_RETRACT_START_LOCATION {49, 84, 20, 0}  // X, Y, Z, E start location for z-probe retract sequence
-#define Z_PROBE_RETRACT_END_LOCATION {49, 84, 1, 0}     // X, Y, Z, E end location for z-probe retract sequence
+#define Z_PROBE_OFFSET {0, 0, 0.4, 0}  // X, Y, Z, E distance between hotend nozzle and deployed bed leveling probe.
+#define Z_PROBE_DEPLOY_START_LOCATION {0, 0, 30, 0}   // X, Y, Z, E start location for z-probe deployment sequence
+#define Z_PROBE_DEPLOY_END_LOCATION {0, 0, 30, 0} 	  // X, Y, Z, E end location for z-probe deployment sequence
+#define Z_PROBE_RETRACT_START_LOCATION {0, 0, 30, 0}  // X, Y, Z, E start location for z-probe retract sequence
+#define Z_PROBE_RETRACT_END_LOCATION {0, 0, 30, 0}     // X, Y, Z, E end location for z-probe retract sequence
 
-#define AUTOLEVEL_GRID 24 // Distance between autolevel Z probing points, should be less than print surface radius/3.
+#define AUTOLEVEL_GRID 20 // Distance between autolevel Z probing points, should be less than print surface radius/3.
 
 //===========================================================================
 //=============================Thermal Settings  ============================
@@ -352,7 +352,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 // For deltabots this means top and center of the cartesian print volume.
 #define MANUAL_X_HOME_POS 0
 #define MANUAL_Y_HOME_POS 0
-#define MANUAL_Z_HOME_POS 457.90 // For delta: Distance between nozzle and print surface after homing.
+#define MANUAL_Z_HOME_POS 463.0 // For delta: Distance between nozzle and print surface after homing.
 
 //// MOVEMENT SETTINGS
 #define NUM_AXIS 4 // The axis order in all axis related arrays is X, Y, Z, E
@@ -367,7 +367,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 #define DEFAULT_ACCELERATION          1000    // X, Y, Z and E max acceleration in mm/s^2 for printing moves
 #define DEFAULT_RETRACT_ACCELERATION  300    // X, Y, Z and E max acceleration in mm/s^2 for retracts
 
-//#define FWRETRACT  //ONLY PARTIALLY TESTED
+#define FWRETRACT  //ONLY PARTIALLY TESTED
 #define RETRACT_AUTORETRACT            true
 #define RETRACT_LENGTH 4.5               //default retract length (positive mm)
 #define RETRACT_FEEDRATE 40            //default feedrate for retracting (mm/s)
