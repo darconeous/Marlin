@@ -4215,16 +4215,6 @@ void clamp_to_software_endstops(float target[3])
 }
 
 #ifdef DELTA
-void recalc_delta_settings(float radius, float diagonal_rod)
-{
-	 delta_tower1_x= -SIN_60*radius; // front left tower
-	 delta_tower1_y= -COS_60*radius;	   
-	 delta_tower2_x=  SIN_60*radius; // front right tower
-	 delta_tower2_y= -COS_60*radius;	   
-	 delta_tower3_x= 0.0;                  // back middle tower
-	 delta_tower3_y= radius;
-	 delta_diagonal_rod_2= sq(diagonal_rod);
-}
 
 void calculate_delta(float cartesian[3])
 {
