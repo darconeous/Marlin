@@ -62,6 +62,10 @@
 //=============================public variables ============================
 //===========================================================================
 
+#ifndef DISABLE_INACTIVE_EXTRUDER
+#define DISABLE_INACTIVE_EXTRUDER 1
+#endif
+
 unsigned long minsegmenttime;
 float max_feedrate[4]; // set the max speeds
 float axis_steps_per_unit[4];
