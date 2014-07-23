@@ -658,6 +658,7 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
    //#define NEWPANEL
 #endif
 
+#define ENCODER_STEPS_PER_MENU_ITEM 2
 
 #ifdef ULTIPANEL
 //  #define NEWPANEL  //enable this if you have a click-encoder panel
