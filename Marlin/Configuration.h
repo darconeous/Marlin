@@ -99,15 +99,15 @@
 // Horizontal offset of the universal joints on the carriages.
 #define DELTA_CARRIAGE_OFFSET (16.5) // mm
 
-#define DEFAULT_DELTA_RADIUS  (96.5-1.0)
+#define DEFAULT_DELTA_RADIUS  (96.5)
 
 #define DELTA_PRINTABLE_RADIUS  (170.0)
 
 // Precision for G30 delta autocalibration function
-#define AUTOCALIBRATION_PRECISION 0.06 // mm
+#define AUTOCALIBRATION_PRECISION 0.08 // mm
 
 // Diameter of print bed - this is used to set the distance that autocalibration probes the bed at.
-#define BED_DIAMETER 150 // mm
+#define BED_DIAMETER 100 // mm
 
 // Z-Probe variables
 // Start and end location values are used to deploy/retract the probe (will move from start to end and back again)
