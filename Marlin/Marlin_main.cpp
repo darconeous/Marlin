@@ -1025,9 +1025,9 @@ static void engage_z_probe() {
     #endif
 }
 
-static void retract_z_probe() {
+void retract_z_probe() {
     // Retract Z Servo endstop if enabled
-    #ifdef SERVO_ENDSTOPS
+#ifdef SERVO_ENDSTOPS
     if (servo_endstops[Z_AXIS] > -1) {
 #if defined (ENABLE_AUTO_BED_LEVELING) && (PROBE_SERVO_DEACTIVATION_DELAY > 0)
         servos[servo_endstops[Z_AXIS]].attach(0);
@@ -1038,7 +1038,31 @@ static void retract_z_probe() {
         servos[servo_endstops[Z_AXIS]].detach();
 #endif
     }
-    #endif
+#else
+  feedrate = homing_feedrate[X_AXIS];
+  destination[Z_AXIS] = 50;
+  prepare_move_raw();
+
+  destination[X_AXIS] = z_probe_retract_start_location[X_AXIS];
+  destination[Y_AXIS] = z_probe_retract_start_location[Y_AXIS];
+  destination[Z_AXIS] = z_probe_retract_start_location[Z_AXIS];
+  prepare_move();
+  prepare_move_raw();
+
+  // Move the nozzle below the print surface to push the probe up.
+  feedrate = homing_feedrate[Z_AXIS]/10;
+  destination[X_AXIS] = z_probe_retract_end_location[X_AXIS];
+  destination[Y_AXIS] = z_probe_retract_end_location[Y_AXIS];
+  destination[Z_AXIS] = z_probe_retract_end_location[Z_AXIS];
+  prepare_move_raw();
+
+  feedrate = homing_feedrate[Z_AXIS];
+  destination[X_AXIS] = z_probe_retract_start_location[X_AXIS];
+  destination[Y_AXIS] = z_probe_retract_start_location[Y_AXIS];
+  destination[Z_AXIS] = z_probe_retract_start_location[Z_AXIS];
+  prepare_move_raw();
+  st_synchronize();
+#endif
 }
 
 /// Probe bed height at position (x,y), returns the measured z value
@@ -1206,31 +1230,6 @@ void deploy_z_probe() {
   st_synchronize();
 }
 
-void retract_z_probe() {
-  feedrate = homing_feedrate[X_AXIS];
-  destination[Z_AXIS] = 50;
-  prepare_move_raw();
-
-  destination[X_AXIS] = z_probe_retract_start_location[X_AXIS];
-  destination[Y_AXIS] = z_probe_retract_start_location[Y_AXIS];
-  destination[Z_AXIS] = z_probe_retract_start_location[Z_AXIS];
-  prepare_move();
-  prepare_move_raw();
-
-  // Move the nozzle below the print surface to push the probe up.
-  feedrate = homing_feedrate[Z_AXIS]/10;
-  destination[X_AXIS] = z_probe_retract_end_location[X_AXIS];
-  destination[Y_AXIS] = z_probe_retract_end_location[Y_AXIS];
-  destination[Z_AXIS] = z_probe_retract_end_location[Z_AXIS];
-  prepare_move_raw();
-
-  feedrate = homing_feedrate[Z_AXIS];
-  destination[X_AXIS] = z_probe_retract_start_location[X_AXIS];
-  destination[Y_AXIS] = z_probe_retract_start_location[Y_AXIS];
-  destination[Z_AXIS] = z_probe_retract_start_location[Z_AXIS];
-  prepare_move_raw();
-  st_synchronize();
-}
 
 float z_probe() {
   feedrate = homing_feedrate[X_AXIS];

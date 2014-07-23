@@ -141,6 +141,7 @@
 #define Z_PROBE_RETRACT_END_LOCATION {0, 0, 20, 0}     // X, Y, Z, E end location for z-probe retract sequence
 
 #define AUTOLEVEL_GRID 20 // Distance between autolevel Z probing points, should be less than print surface radius/3.
+#define AUTO_BED_LEVELING_GRID
 
 //===========================================================================
 //=============================Thermal Settings  ============================
