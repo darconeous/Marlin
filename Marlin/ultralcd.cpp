@@ -930,9 +930,17 @@ static void lcd_control_delta_menu()
 {
     START_MENU();
     MENU_ITEM(back, MSG_CONTROL, lcd_control_menu);
-    MENU_ITEM_EDIT(float3, MSG_CONTROL_DELTA_SEGMENTS_PER_SECOND, &delta_segments_per_second, 10, 990);
+    MENU_ITEM_EDIT(float3, MSG_CONTROL_DELTA_SEGMENTS_PER_SECOND, &delta_segments_per_second, 1, 999);
     MENU_ITEM_EDIT(float52, MSG_CONTROL_DELTA_DIAGONAL_ROD, &delta_diagonal_rod, 0.01, 999);
     MENU_ITEM_EDIT(float52, MSG_CONTROL_DELTA_RADIUS, &delta_radius, 0.01, 999);
+    MENU_ITEM_EDIT(float52, "Z Probe Offset", &z_probe_offset[Z_AXIS], -10, 10);
+    MENU_ITEM_EDIT(float52, "Height mm", &max_pos[Z_AXIS], 0.01, 999);
+    MENU_ITEM_EDIT(float52, "TAdj A DEG", &tower_adj[0], -30, 30);
+    MENU_ITEM_EDIT(float52, "TAdj B DEG", &tower_adj[1], -30, 30);
+    MENU_ITEM_EDIT(float52, "TAdj C DEG", &tower_adj[2], -30, 30);
+    MENU_ITEM_EDIT(float52, "TAdj I mm", &tower_adj[3], -99, 99);
+    MENU_ITEM_EDIT(float52, "TAdj J mm", &tower_adj[4], -99, 99);
+    MENU_ITEM_EDIT(float52, "TAdj k mm", &tower_adj[5], -99, 99);
     END_MENU();
 }
 #endif
