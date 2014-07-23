@@ -135,7 +135,7 @@
 
 // Z-Probe variables
 // Start and end location values are used to deploy/retract the probe (will move from start to end and back again)
-#define Z_PROBE_OFFSET {0, 0, 0.4, 0}  // X, Y, Z, E distance between hotend nozzle and deployed bed leveling probe.
+#define Z_PROBE_OFFSET {0, 0, -0.33, 0}  // X, Y, Z, E distance between hotend nozzle and deployed bed leveling probe.
 #define Z_PROBE_DEPLOY_START_LOCATION {0, 0, 30, 0}   // X, Y, Z, E start location for z-probe deployment sequence
 #define Z_PROBE_DEPLOY_END_LOCATION {0, 0, 30, 0} 	  // X, Y, Z, E end location for z-probe deployment sequence
 #define Z_PROBE_RETRACT_START_LOCATION {0, 0, 30, 0}  // X, Y, Z, E start location for z-probe retract sequence
@@ -224,9 +224,9 @@
 
 // If you are using a preconfigured hotend then you can use one of the value sets by uncommenting it
 // Ultimaker
-    #define  DEFAULT_Kp 10.06
-    #define  DEFAULT_Ki 0.72
-    #define  DEFAULT_Kd 34.93
+    #define  DEFAULT_Kp 10.58
+    #define  DEFAULT_Ki 1.16
+    #define  DEFAULT_Kd 24.11
 
 // Makergear
 //    #define  DEFAULT_Kp 7.0

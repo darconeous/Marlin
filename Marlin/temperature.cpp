@@ -281,7 +281,7 @@ void PID_autotune(float temp, int extruder, int ncycles)
         }
       } 
     }
-    if(input > (temp + 20)) {
+    if((input > (temp*1.2)) || (input > (maxttemp[extruder]))) {
       SERIAL_PROTOCOLLNPGM("PID Autotune failed! Temperature too high");
       return;
     }
