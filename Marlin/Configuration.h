@@ -118,14 +118,15 @@
 // Horizontal offset of the universal joints on the carriages.
 #define DELTA_CARRIAGE_OFFSET 16.5 // mm
 
+#define DEFAULT_DELTA_RADIUS  (96.5)
 // Effective horizontal distance bridged by diagonal push rods.
-#define DEFAULT_DELTA_RADIUS (DELTA_SMOOTH_ROD_OFFSET-DELTA_EFFECTOR_OFFSET-DELTA_CARRIAGE_OFFSET)
+//#define DEFAULT_DELTA_RADIUS (DELTA_SMOOTH_ROD_OFFSET-DELTA_EFFECTOR_OFFSET-DELTA_CARRIAGE_OFFSET)
 
 //Uncomment to enable autocalibration debug messages
 //#define DEBUG_MESSAGES
 
 // Precision for G30 delta autocalibration function
-#define AUTOCALIBRATION_PRECISION 0.06 // mm
+#define AUTOCALIBRATION_PRECISION 0.08 // mm
 
 // Diameter of print bed - this is used to set the distance that autocalibration probes the bed at.
 #define BED_DIAMETER 100 // mm
@@ -134,11 +135,11 @@
 
 // Z-Probe variables
 // Start and end location values are used to deploy/retract the probe (will move from start to end and back again)
-#define Z_PROBE_OFFSET {0, 0, -0.33, 0}  // X, Y, Z, E distance between hotend nozzle and deployed bed leveling probe.
+#define Z_PROBE_OFFSET {0, 0, 0.4, 0}  // X, Y, Z, E distance between hotend nozzle and deployed bed leveling probe.
 #define Z_PROBE_DEPLOY_START_LOCATION {0, 0, 30, 0}   // X, Y, Z, E start location for z-probe deployment sequence
 #define Z_PROBE_DEPLOY_END_LOCATION {0, 0, 30, 0} 	  // X, Y, Z, E end location for z-probe deployment sequence
-#define Z_PROBE_RETRACT_START_LOCATION {0, 0, 20, 0}  // X, Y, Z, E start location for z-probe retract sequence
-#define Z_PROBE_RETRACT_END_LOCATION {0, 0, 20, 0}     // X, Y, Z, E end location for z-probe retract sequence
+#define Z_PROBE_RETRACT_START_LOCATION {0, 0, 30, 0}  // X, Y, Z, E start location for z-probe retract sequence
+#define Z_PROBE_RETRACT_END_LOCATION {0, 0, 30, 0}     // X, Y, Z, E end location for z-probe retract sequence
 
 #define AUTOLEVEL_GRID 20 // Distance between autolevel Z probing points, should be less than print surface radius/3.
 #define AUTO_BED_LEVELING_GRID
@@ -487,9 +488,6 @@ const bool Z_MAX_ENDSTOP_INVERTING = true; // set to true to invert the logic of
 
 // default settings
 // delta speeds must be the same on xyz
-// Calculated steps-per-unit is:
-// (STEPS_PER_REVOLUTION)/(SPOOL_DIAMETER*M_PI) == (200*16)/(18*M_PI) == 56.588
-// Not sure why I measured 54.47... Which would be the equivalent of a 18.7mm diameter spool... hmm...
 #define DEFAULT_AXIS_STEPS_PER_UNIT   {54.47, 54.47, 54.47, 592}
 #define DEFAULT_MAX_FEEDRATE          {500, 500, 500, 100}    // (mm/sec)
 #define DEFAULT_MAX_ACCELERATION      {1500,1500,1500,100}    // X, Y, Z, E maximum start speed for accelerated moves. E default values are good for skeinforge 40+, for older versions raise them a lot.

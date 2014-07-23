@@ -63,11 +63,11 @@ void Config_StoreSettings()
   EEPROM_WRITE_VAR(i,add_homeing);
   #ifdef DELTA
   EEPROM_WRITE_VAR(i,endstop_adj);
-  EEPROM_WRITE_VAR(i,delta_radius);
-  EEPROM_WRITE_VAR(i,delta_diagonal_rod);
-  EEPROM_WRITE_VAR(i,max_pos);
-  EEPROM_WRITE_VAR(i,tower_adj);
-  EEPROM_WRITE_VAR(i,z_probe_offset);
+    EEPROM_WRITE_VAR(i,delta_radius);
+    EEPROM_WRITE_VAR(i,delta_diagonal_rod);
+    EEPROM_WRITE_VAR(i,max_pos);
+    EEPROM_WRITE_VAR(i,tower_adj);
+    EEPROM_WRITE_VAR(i,z_probe_offset);
   EEPROM_WRITE_VAR(i,delta_segments_per_second);
   #endif
   #ifndef ULTIPANEL
@@ -237,14 +237,14 @@ void Config_RetrieveSettings()
         EEPROM_READ_VAR(i,add_homeing);
         #ifdef DELTA
 		EEPROM_READ_VAR(i,endstop_adj);
-        EEPROM_READ_VAR(i,delta_radius);
+          EEPROM_READ_VAR(i,delta_radius);
 	    EEPROM_READ_VAR(i,delta_diagonal_rod);
-        EEPROM_READ_VAR(i,max_pos);
-        EEPROM_READ_VAR(i,tower_adj);
-        EEPROM_READ_VAR(i,z_probe_offset);
+          EEPROM_READ_VAR(i,max_pos);
+          EEPROM_READ_VAR(i,tower_adj);
+          EEPROM_READ_VAR(i,z_probe_offset);
         EEPROM_READ_VAR(i,delta_segments_per_second);
-        // Update delta constants for updated delta_radius & tower_adj values
-        set_delta_constants();
+          // Update delta constants for updated delta_radius & tower_adj values
+          set_delta_constants();
         #endif
         #ifndef ULTIPANEL
         int plaPreheatHotendTemp, plaPreheatHPBTemp, plaPreheatFanSpeed;
