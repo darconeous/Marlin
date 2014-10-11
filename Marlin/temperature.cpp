@@ -178,6 +178,7 @@ void PID_autotune(float temp, int extruder, int ncycles)
   float Ku, Tu;
   float Kp, Ki, Kd;
   float max = 0, min = 10000;
+  float faultmaxtemp = 0;
 
   if ((extruder >= EXTRUDERS)
   #if (TEMP_BED_PIN <= -1)
@@ -189,6 +190,16 @@ void PID_autotune(float temp, int extruder, int ncycles)
         }
 	
   SERIAL_ECHOLN("PID Autotune start");
+
+  if(extruder>=0) {
+    faultmaxtemp = maxttemp[extruder];
+  } else {
+    faultmaxtemp = BED_MAXTEMP;
+  }
+
+  if(faultmaxtemp>temp*1.2) {
+    faultmaxtemp = temp*1.2;
+  }
   
   disable_heater(); // switch off all heaters.
 
@@ -281,7 +292,7 @@ void PID_autotune(float temp, int extruder, int ncycles)
         }
       } 
     }
-    if((input > (temp*1.2)) || (input > (maxttemp[extruder]))) {
+    if(input > faultmaxtemp) {
       SERIAL_PROTOCOLLNPGM("PID Autotune failed! Temperature too high");
       return;
     }

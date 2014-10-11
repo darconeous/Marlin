@@ -96,6 +96,15 @@ void Config_StoreSettings()
     int lcd_contrast = 32;
   #endif
   EEPROM_WRITE_VAR(i,lcd_contrast);
+
+  #ifndef PIDTEMPBED
+  float bedKp=3000.0f, bedKi=0, bedKd=0;
+  #endif
+
+    EEPROM_WRITE_VAR(i,bedKp);
+    EEPROM_WRITE_VAR(i,bedKi);
+    EEPROM_WRITE_VAR(i,bedKd);
+
   char ver2[4]=EEPROM_VERSION;
   i=EEPROM_OFFSET;
   EEPROM_WRITE_VAR(i,ver2); // validate data
@@ -204,6 +213,15 @@ void Config_PrintSettings()
     SERIAL_ECHOPAIR(" D" ,unscalePID_d(Kd));
     SERIAL_ECHOLN(""); 
 #endif
+#ifdef PIDTEMPBED
+    SERIAL_ECHO_START;
+    SERIAL_ECHOLNPGM("Hotbed PID settings:");
+    SERIAL_ECHO_START;
+    SERIAL_ECHOPAIR("   M304 P",bedKp);
+    SERIAL_ECHOPAIR(" I" ,unscalePID_i(bedKi));
+    SERIAL_ECHOPAIR(" D" ,unscalePID_d(bedKd));
+    SERIAL_ECHOLN("");
+#endif
 } 
 #endif
 
@@ -264,10 +282,19 @@ void Config_RetrieveSettings()
         EEPROM_READ_VAR(i,Kp);
         EEPROM_READ_VAR(i,Ki);
         EEPROM_READ_VAR(i,Kd);
+
         #ifndef DOGLCD
         int lcd_contrast;
         #endif
         EEPROM_READ_VAR(i,lcd_contrast);
+
+        #ifndef PIDTEMPBED
+        float bedKp,bedKi,bedKd;
+        #endif
+        // do not need to scale PID values as the values in EEPROM are already scaled
+        EEPROM_READ_VAR(i,bedKp);
+        EEPROM_READ_VAR(i,bedKi);
+        EEPROM_READ_VAR(i,bedKd);
 
 		// Call updatePID (similar to when we have processed M301)
 		updatePID();
@@ -344,6 +371,16 @@ void Config_ResetDefault()
     Kc = DEFAULT_Kc;
 #endif//PID_ADD_EXTRUSION_RATE
 #endif//PIDTEMP
+
+#ifdef PIDTEMPBED
+    bedKp = DEFAULT_bedKp;
+    bedKi = scalePID_i(DEFAULT_bedKi);
+    bedKd = scalePID_d(DEFAULT_bedKd);
+
+    // call updatePID (similar to when we have processed M301)
+    updatePID();
+#endif//PIDTEMPBED
+
 
 SERIAL_ECHO_START;
 SERIAL_ECHOLNPGM("Hardcoded Default Settings Loaded");

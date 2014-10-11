@@ -566,6 +566,7 @@ static void lcd_prepare_menu()
 #endif
     MENU_ITEM(gcode, MSG_DISABLE_STEPPERS, PSTR("M84"));
     MENU_ITEM(gcode, MSG_AUTO_HOME, PSTR("G28"));
+    MENU_ITEM(gcode, "Auto Level", PSTR("G29"));
     //MENU_ITEM(gcode, MSG_SET_ORIGIN, PSTR("G92 X0 Y0 Z0"));
 #if TEMP_SENSOR_0 != 0
   #if TEMP_SENSOR_1 != 0 || TEMP_SENSOR_2 != 0 || TEMP_SENSOR_BED != 0
@@ -594,10 +595,10 @@ static void lcd_move_menu_axis();
 
 static void lcd_move_x()
 {
-    if (encoderPosition != 0)
+    if ((int)encoderPosition/ENCODER_STEPS_PER_MENU_ITEM != 0)
     {
         refresh_cmd_timeout();
-        current_position[X_AXIS] += float((int)encoderPosition) * move_menu_scale;
+		current_position[X_AXIS] += float((int)encoderPosition/ENCODER_STEPS_PER_MENU_ITEM) * move_menu_scale;
         if (min_software_endstops && current_position[X_AXIS] < X_MIN_POS)
             current_position[X_AXIS] = X_MIN_POS;
         if (max_software_endstops && current_position[X_AXIS] > X_MAX_POS)
@@ -624,10 +625,10 @@ static void lcd_move_x()
 }
 static void lcd_move_y()
 {
-    if (encoderPosition != 0)
+    if ((int)encoderPosition/ENCODER_STEPS_PER_MENU_ITEM != 0)
     {
         refresh_cmd_timeout();
-        current_position[Y_AXIS] += float((int)encoderPosition) * move_menu_scale;
+        current_position[Y_AXIS] += float((int)encoderPosition/ENCODER_STEPS_PER_MENU_ITEM) * move_menu_scale;
         if (min_software_endstops && current_position[Y_AXIS] < Y_MIN_POS)
             current_position[Y_AXIS] = Y_MIN_POS;
         if (max_software_endstops && current_position[Y_AXIS] > Y_MAX_POS)
@@ -654,10 +655,10 @@ static void lcd_move_y()
 }
 static void lcd_move_z()
 {
-    if (encoderPosition != 0)
+    if ((int)encoderPosition/ENCODER_STEPS_PER_MENU_ITEM != 0)
     {
         refresh_cmd_timeout();
-        current_position[Z_AXIS] += float((int)encoderPosition) * move_menu_scale;
+        current_position[Z_AXIS] += float((int)encoderPosition/ENCODER_STEPS_PER_MENU_ITEM) * move_menu_scale;
         if (min_software_endstops && current_position[Z_AXIS] < Z_MIN_POS)
             current_position[Z_AXIS] = Z_MIN_POS;
         if (max_software_endstops && current_position[Z_AXIS] > Z_MAX_POS)
@@ -684,9 +685,9 @@ static void lcd_move_z()
 }
 static void lcd_move_e()
 {
-    if (encoderPosition != 0)
+    if ((int)encoderPosition/ENCODER_STEPS_PER_MENU_ITEM != 0)
     {
-        current_position[E_AXIS] += float((int)encoderPosition) * move_menu_scale;
+        current_position[E_AXIS] += float((int)encoderPosition/ENCODER_STEPS_PER_MENU_ITEM) * move_menu_scale;
         encoderPosition = 0;
         #ifdef DELTA
         calculate_delta(current_position);
@@ -933,7 +934,7 @@ static void lcd_control_delta_menu()
     MENU_ITEM_EDIT(float3, MSG_CONTROL_DELTA_SEGMENTS_PER_SECOND, &delta_segments_per_second, 1, 999);
     MENU_ITEM_EDIT(float52, MSG_CONTROL_DELTA_DIAGONAL_ROD, &delta_diagonal_rod, 0.01, 999);
     MENU_ITEM_EDIT(float52, MSG_CONTROL_DELTA_RADIUS, &delta_radius, 0.01, 999);
-    MENU_ITEM_EDIT(float52, "Z Probe Offset", &z_probe_offset[Z_AXIS], -10, 10);
+    MENU_ITEM_EDIT(float52, "Z-Prb Ofst", &z_probe_offset[Z_AXIS], -10, 10);
     MENU_ITEM_EDIT(float52, "Height mm", &max_pos[Z_AXIS], 0.01, 999);
     MENU_ITEM_EDIT(float52, "TAdj A DEG", &tower_adj[0], -30, 30);
     MENU_ITEM_EDIT(float52, "TAdj B DEG", &tower_adj[1], -30, 30);
@@ -1005,10 +1006,10 @@ void lcd_sdcard_menu()
         if ((int32_t)encoderPosition > maxEditValue) \
             encoderPosition = maxEditValue; \
         if (lcdDrawUpdate) \
-            lcd_implementation_drawedit(editLabel, _strFunc(((_type)encoderPosition) / scale)); \
+            lcd_implementation_drawedit(editLabel, _strFunc(((_type)(int)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM))); \
         if (LCD_CLICKED) \
         { \
-            *((_type*)editValue) = ((_type)encoderPosition) / scale; \
+            *((_type*)editValue) = ((_type)(int)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM); \
             lcd_quick_feedback(); \
             currentMenu = prevMenu; \
             encoderPosition = prevEncoderPosition; \
@@ -1021,10 +1022,10 @@ void lcd_sdcard_menu()
         if ((int32_t)encoderPosition > maxEditValue) \
             encoderPosition = maxEditValue; \
         if (lcdDrawUpdate) \
-            lcd_implementation_drawedit(editLabel, _strFunc(((_type)encoderPosition) / scale)); \
+            lcd_implementation_drawedit(editLabel, _strFunc(((_type)(int)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM))); \
         if (LCD_CLICKED) \
         { \
-            *((_type*)editValue) = ((_type)encoderPosition) / scale; \
+            *((_type*)editValue) = ((_type)(int)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM); \
             lcd_quick_feedback(); \
             currentMenu = prevMenu; \
             encoderPosition = prevEncoderPosition; \
@@ -1041,9 +1042,9 @@ void lcd_sdcard_menu()
          \
         editLabel = pstr; \
         editValue = ptr; \
-        minEditValue = minValue * scale; \
-        maxEditValue = maxValue * scale; \
-        encoderPosition = (*ptr) * scale; \
+        minEditValue = minValue * scale * ENCODER_STEPS_PER_MENU_ITEM; \
+        maxEditValue = maxValue * scale * ENCODER_STEPS_PER_MENU_ITEM; \
+        encoderPosition = (*ptr) * scale * ENCODER_STEPS_PER_MENU_ITEM; \
     }\
     static void menu_action_setting_edit_callback_ ## _name (const char* pstr, _type* ptr, _type minValue, _type maxValue, menuFunc_t callback) \
     { \
@@ -1055,9 +1056,9 @@ void lcd_sdcard_menu()
          \
         editLabel = pstr; \
         editValue = ptr; \
-        minEditValue = minValue * scale; \
-        maxEditValue = maxValue * scale; \
-        encoderPosition = (*ptr) * scale; \
+        minEditValue = minValue * scale * ENCODER_STEPS_PER_MENU_ITEM; \
+        maxEditValue = maxValue * scale * ENCODER_STEPS_PER_MENU_ITEM; \
+        encoderPosition = (*ptr) * scale * ENCODER_STEPS_PER_MENU_ITEM; \
         callbackFunc = callback;\
     }
 menu_edit_type(int, int3, itostr3, 1)
@@ -1210,7 +1211,7 @@ void lcd_init()
 
 void lcd_update()
 {
-    static unsigned long timeoutToStatus = 0;
+    static unsigned long timeOfLastAction = 0;
 
     #ifdef LCD_HAS_SLOW_BUTTONS
     slow_buttons = lcd_implementation_read_slow_buttons(); // buttons which take too long to read in interrupt context
@@ -1269,10 +1270,10 @@ void lcd_update()
             lcdDrawUpdate = 1;
             encoderPosition += encoderDiff / ENCODER_PULSES_PER_STEP;
             encoderDiff = 0;
-            timeoutToStatus = millis() + LCD_TIMEOUT_TO_STATUS;
+            timeOfLastAction = millis();
         }
         if (LCD_CLICKED)
-            timeoutToStatus = millis() + LCD_TIMEOUT_TO_STATUS;
+            timeOfLastAction = millis();
 #endif//ULTIPANEL
 
 #ifdef DOGLCD        // Changes due to different driver architecture of the DOGM display
@@ -1297,9 +1298,10 @@ void lcd_update()
 #endif
 
 #ifdef ULTIPANEL
-        if(timeoutToStatus < millis() && currentMenu != lcd_status_screen)
+        if(timeOfLastAction && (millis()-timeOfLastAction > LCD_TIMEOUT_TO_STATUS) && (currentMenu != lcd_status_screen))
         {
             lcd_return_to_status();
+			timeOfLastAction = 0;
             lcdDrawUpdate = 2;
         }
 #endif//ULTIPANEL
@@ -1637,15 +1639,20 @@ char *ftostr51(const float &x)
 //  convert float to string with +123.45 format
 char *ftostr52(const float &x)
 {
-  long xx=x*100;
-  conv[0]=(xx>=0)?'+':'-';
-  xx=abs(xx);
-  conv[1]=(xx/10000)%10+'0';
-  conv[2]=(xx/1000)%10+'0';
-  conv[3]=(xx/100)%10+'0';
-  conv[4]='.';
-  conv[5]=(xx/10)%10+'0';
+  long xx=fabs(x*100);
+  conv[0]=(x<0)?'-':'+';
+  if(xx==0)
+	conv[0]=' ';
   conv[6]=(xx)%10+'0';
+  xx/=10;
+  conv[5]=(xx)%10+'0';
+  conv[4]='.';
+  xx/=10;
+  conv[3]=(xx)%10+'0';
+  xx/=10;
+  conv[2]=(xx)%10+'0';
+  xx/=10;
+  conv[1]=(xx)%10+'0';
   conv[7]=0;
   return conv;
 }

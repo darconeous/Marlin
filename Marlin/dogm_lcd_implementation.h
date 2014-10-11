@@ -462,7 +462,14 @@ void lcd_implementation_drawedit(const char* pstr, char* value)
 		u8g.setFont(u8g_font_9x18);
 		lcd_printPGM(pstr);
 		u8g.print(':');
-		u8g.setPrintPos((14 - strlen(value)) * DOG_CHAR_WIDTH_LARGE, (u8g.getHeight() - 1 - DOG_CHAR_HEIGHT_LARGE) - (1 * DOG_CHAR_HEIGHT_LARGE) - START_ROW );
+		u8g.setPrintPos(
+			(14 - strlen(value)) * DOG_CHAR_WIDTH_LARGE,
+			(u8g.getHeight() - 1 - DOG_CHAR_HEIGHT_LARGE)
+				- (1 * DOG_CHAR_HEIGHT_LARGE)
+				- START_ROW
+				+ DOG_CHAR_HEIGHT_LARGE
+				//+ ((strlen(pstr)+strlen(value))>10?DOG_CHAR_HEIGHT_LARGE:0)
+		);
 		u8g.print(value);
 }
 
