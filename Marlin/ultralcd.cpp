@@ -1006,10 +1006,10 @@ void lcd_sdcard_menu()
         if ((int32_t)encoderPosition > maxEditValue) \
             encoderPosition = maxEditValue; \
         if (lcdDrawUpdate) \
-            lcd_implementation_drawedit(editLabel, _strFunc(((_type)(int)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM))); \
+            lcd_implementation_drawedit(editLabel, _strFunc(((_type)(int32_t)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM))); \
         if (LCD_CLICKED) \
         { \
-            *((_type*)editValue) = ((_type)(int)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM); \
+            *((_type*)editValue) = ((_type)(int32_t)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM); \
             lcd_quick_feedback(); \
             currentMenu = prevMenu; \
             encoderPosition = prevEncoderPosition; \
@@ -1022,10 +1022,10 @@ void lcd_sdcard_menu()
         if ((int32_t)encoderPosition > maxEditValue) \
             encoderPosition = maxEditValue; \
         if (lcdDrawUpdate) \
-            lcd_implementation_drawedit(editLabel, _strFunc(((_type)(int)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM))); \
+            lcd_implementation_drawedit(editLabel, _strFunc(((_type)(int32_t)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM))); \
         if (LCD_CLICKED) \
         { \
-            *((_type*)editValue) = ((_type)(int)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM); \
+            *((_type*)editValue) = ((_type)(int32_t)encoderPosition) / (scale * ENCODER_STEPS_PER_MENU_ITEM); \
             lcd_quick_feedback(); \
             currentMenu = prevMenu; \
             encoderPosition = prevEncoderPosition; \
