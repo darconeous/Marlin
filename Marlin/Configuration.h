@@ -134,6 +134,9 @@
 
 #define DELTA_PRINTABLE_RADIUS  (80.0)
 
+#define DELTA_XY_SCALE    0.98
+#define DELTA_Z_SCALE     1.00
+
 // Z-Probe variables
 // Start and end location values are used to deploy/retract the probe (will move from start to end and back again)
 #define Z_PROBE_OFFSET {0, 0, 0.33, 0}  // X, Y, Z, E distance between hotend nozzle and deployed bed leveling probe.
